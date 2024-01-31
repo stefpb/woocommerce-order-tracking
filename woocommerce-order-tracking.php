@@ -2,24 +2,31 @@
 
 /**
  * Plugin Name: WooCommerce Order Tracking
- * Plugin URI: https://github.com/opportus/woocommerce-tracking-number/
- * Author: Clément Cazaud
+ * Plugin URI: https://github.com/stefpb/woocommerce-order-tracking
+ * Author: Stefan Löhers
  * Author URI: https://github.com/opportus/
  * Licence: MIT Licence
  * Licence URI: https://opensource.org/licenses/MIT
  * Description: A simple and flexible order tracking solution for WooCommerce.
- * Version: 0.1
- * Requires at least: 4.4
- * Tested up to 4.6
+ * Version: 0.2
+ * Requires at least: 6.0
+ * Tested up to 6.6
  * Text Domain: woocommerce-order-tracking
+ * WC tested up to: 8.6.0
  *
- * @version 0.1
+ * @version 0.2
  * @author  Clément Cazaud <opportus@gmail.com>
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly...
 }
+
+add_action('before_woocommerce_init', function () {
+	if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+	}
+});
 
 /**
  * @class WCOT
@@ -383,8 +390,9 @@ class WCOT {
 
 		global $post;
 
-		$wcot_shipper = get_post_meta( $post->ID, 'wcot_shipper', true );
-		$wcot_number  = get_post_meta( $post->ID, 'wcot_number', true );
+		$order = wc_get_order($post->ID);
+		$wcot_shipper = $order->get_meta('wcot_shipper', true);
+		$wcot_number  = $order->get_meta('wcot_number', true);
 
 		echo '<p class="description">' . esc_html__( 'Select the shipper, enter your tracking number and save...', 'woocommerce-order-tracking' ) . '</p>';
 		echo '<p><label for="wcot_shipper">' . esc_html__( 'Shipper', 'woocommerce-order-tracking' ) . '</label /><br />';
@@ -423,9 +431,11 @@ class WCOT {
 		$wcot_shipper = sanitize_text_field( $_POST['wcot_shipper'] );
 		$wcot_number  = sanitize_text_field( $_POST['wcot_number'] );
 
+		$order = wc_get_order($post_ID);
+
 		if ( preg_match( '/^[\p{L}0-9\s\-_]{2,50}$/u', $wcot_shipper ) && preg_match( '/^[\p{L}0-9\s\-_]{2,50}$/u', $wcot_number ) ) {
-			update_post_meta( $post_ID, 'wcot_shipper', $wcot_shipper );
-			update_post_meta( $post_ID, 'wcot_number', $wcot_number );
+			$order->update_meta_data('wcot_shipper', $wcot_shipper);
+			$order->update_meta_data('wcot_number', $wcot_number);
 		}
 
 		else set_transient( 'wcot_error', true, 60 );
@@ -479,8 +489,9 @@ class WCOT {
 		}
 		
 		$shippers     = $this->get_shippers();
-		$wcot_shipper = get_post_meta( $order_id, 'wcot_shipper', true );
-		$wcot_number  = get_post_meta( $order_id, 'wcot_number', true );
+		$order = wc_get_order($order_id);
+		$wcot_shipper = $order->get_meta('wcot_shipper', true);
+		$wcot_number  = $order->get_meta('wcot_number', true);
 
 		if ( ! empty( $wcot_shipper ) && ! empty( $wcot_number ) && array_key_exists( $wcot_shipper, $shippers ) ) {
 			$html  = sprintf( esc_html__( 'Shipped by %s', 'woocommerce-order-tracking' ), esc_html( $shippers[ $wcot_shipper ]['name'] ) ) . '<br />';
